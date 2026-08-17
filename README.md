@@ -1,8 +1,9 @@
-﻿# 🛡️ ShieldGuard-CLI
+# 🛡️ ShieldGuard-CLI
 
 ![Go Version](https://img.shields.io/badge/Go-1.20%2B-00ADD8?style=flat&logo=go)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama-black?style=flat&logo=ollama)
-![License](https://img.shields.io/badge/License-MIT-blue.svg)
+
+[![ShieldGuard CI](https://github.com/Qyroxen/shieldguard/actions/workflows/ci.yml/badge.svg)](https://github.com/Qyroxen/shieldguard/actions/workflows/ci.yml)
 
 **ShieldGuard** is a local-first Static Application Security Testing (SAST) CLI tool built with Go. It scans codebases for high-risk security vulnerabilities and uses local LLMs via **Ollama** to analyze risks and auto-patch vulnerable code lines.
 
