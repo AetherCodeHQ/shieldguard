@@ -1,4 +1,4 @@
-﻿package cmd
+package cmd
 
 import (
     "context"
@@ -35,8 +35,8 @@ func init() {
     rootCmd.AddCommand(scanCmd)
 }
 
-func resolveConfig() {
-    if scanCmd.Flags().Changed("model") {
+func resolveConfig(cmd *cobra.Command) {
+    if cmd.Flags().Changed("model") {
         // CLI bayrağı öncelikli
     } else if viper.IsSet("model") {
         modelName = viper.GetString("model")
@@ -44,26 +44,26 @@ func resolveConfig() {
         modelName = "llama3"
     }
 
-    if scanCmd.Flags().Changed("ollama-url") {
+    if cmd.Flags().Changed("ollama-url") {
     } else if viper.IsSet("ollama_url") {
         ollamaURL = viper.GetString("ollama_url")
     } else {
         ollamaURL = "http://localhost:11434"
     }
 
-    if scanCmd.Flags().Changed("auto-fix") {
+    if cmd.Flags().Changed("auto-fix") {
     } else if viper.IsSet("auto_fix") {
         autoFix = viper.GetBool("auto_fix")
     }
 
-    if scanCmd.Flags().Changed("concurrency") {
+    if cmd.Flags().Changed("concurrency") {
     } else if viper.IsSet("concurrency") {
         concurrency = viper.GetInt("concurrency")
     } else {
         concurrency = 3
     }
 
-    if scanCmd.Flags().Changed("timeout") {
+    if cmd.Flags().Changed("timeout") {
     } else if viper.IsSet("timeout") {
         timeoutSec = viper.GetInt("timeout")
     } else {
@@ -75,7 +75,7 @@ var scanCmd = &cobra.Command{
     Use:   "scan",
     Short: "Kod tabanini tarar ve olasi guvenlik aciklarini raporlar",
     Run: func(cmd *cobra.Command, args []string) {
-        resolveConfig()
+        resolveConfig(cmd)
 
         if viper.ConfigFileUsed() != "" {
             color.New(color.FgCyan).Printf("Konfigürasyon yuklendi: %s\n", viper.ConfigFileUsed())

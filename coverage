@@ -1,0 +1,6 @@
+mode: set
+github.com/Qyroxen/shieldguard/pkg/report/report.go:11.30,11.52 1 0
+github.com/Qyroxen/shieldguard/pkg/report/report.go:13.61,15.26 2 0
+github.com/Qyroxen/shieldguard/pkg/report/report.go:15.26,17.6 1 0
+github.com/Qyroxen/shieldguard/pkg/report/report.go:20.95,23.2 2 0
+github.com/Qyroxen/shieldguard/examples/vulnerable-app/main.go:7.13,9.2 1 0
