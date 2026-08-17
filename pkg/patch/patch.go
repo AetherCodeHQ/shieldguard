@@ -4,8 +4,18 @@ import (
     "bufio"
     "fmt"
     "os"
+    "os/exec"
     "strings"
 )
+
+func IsWorkTreeClean() bool {
+    cmd := exec.Command("git", "status", "--porcelain")
+    out, err := cmd.Output()
+    if err != nil {
+        return false
+    }
+    return len(strings.TrimSpace(string(out))) == 0
+}
 
 func ApplyLineFix(filePath string, lineNo int, newCode string) error {
     file, err := os.Open(filePath)
@@ -32,5 +42,9 @@ func ApplyLineFix(filePath string, lineNo int, newCode string) error {
     }
 
     content := strings.Join(lines, "\n") + "\n"
-    return os.WriteFile(filePath, []byte(content), 0644)
+    if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+        _ = exec.Command("git", "checkout", "--", filePath).Run()
+        return fmt.Errorf("yama yazilamadi, degisiklik geri alindi: %w", err)
+    }
+    return nil
 }

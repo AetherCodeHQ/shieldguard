@@ -1,8 +1,11 @@
 ﻿package cmd
 
 import (
+    "context"
     "fmt"
     "path/filepath"
+    "sync"
+    "time"
 
     "github.com/fatih/color"
     "github.com/spf13/cobra"
@@ -17,12 +20,16 @@ var scanPath string
 var modelName string
 var autoFix bool
 var ollamaURL string
+var concurrency int
+var timeoutSec int
 
 func init() {
     scanCmd.Flags().StringVar(&scanPath, "path", ".", "Taranacak proje dizini")
     scanCmd.Flags().StringVar(&modelName, "model", "llama3", "Kullanilacak Ollama modeli")
     scanCmd.Flags().StringVar(&ollamaURL, "ollama-url", "http://localhost:11434", "Ollama base URL")
-    scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Onay sonrasi yamalari otomatik uygula")
+    scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Yamalari otomatik uygula")
+    scanCmd.Flags().IntVar(&concurrency, "concurrency", 3, "Eszamanli LLM analiz worker sayisi")
+    scanCmd.Flags().IntVar(&timeoutSec, "timeout", 120, "Toplam analiz zaman asimi (saniye)")
     rootCmd.AddCommand(scanCmd)
 }
 
@@ -30,7 +37,7 @@ var scanCmd = &cobra.Command{
     Use:   "scan",
     Short: "Kod tabanini tarar ve olasi guvenlik aciklarini raporlar",
     Run: func(cmd *cobra.Command, args []string) {
-        color.New(color.FgGreen).Printf("Scan baslatiliyor: %s (model=%s) auto-fix=%v\n", scanPath, modelName, autoFix)
+        color.New(color.FgGreen).Printf("Scan baslatiliyor: %s (model=%s, workers=%d) auto-fix=%v\n", scanPath, modelName, concurrency, autoFix)
 
         absPath, _ := filepath.Abs(scanPath)
         reporter := report.NewReporter()
@@ -46,25 +53,66 @@ var scanCmd = &cobra.Command{
             return
         }
 
-        client := ollama.NewClient(ollamaURL, modelName)
-        for _, v := range vulns {
-            color.New(color.FgYellow).Printf("\n[+] Analiz ediliyor: %s:%d (%s)\n", v.FilePath, v.Line, v.Type)
-            analysis, patchText, err := client.AnalyzeAndFix(v)
-            if err != nil {
-                color.New(color.FgRed).Printf("LLM hatasi: %v\n", err)
-                continue
-            }
-            reporter.PrintVulnerabilityWithFix(v, analysis, patchText)
-
-            if autoFix && patchText != "" {
-                err := patch.ApplyLineFix(v.FilePath, v.Line, patchText)
-                if err != nil {
-                    color.New(color.FgRed).Printf("Yama uygulanamadi: %v\n", err)
-                } else {
-                    color.New(color.FgCyan).Printf("=> [AUTO-FIX] %s:%d başarıyla düzeltildi!\n", v.FilePath, v.Line)
-                }
-            }
+        if autoFix && !patch.IsWorkTreeClean() {
+            color.New(color.FgYellow).Println("[!] UYARI: Git calisma dizini temiz degil. Degisikliklerinizi kaydetmeniz onerilir.")
         }
+
+        client := ollama.NewClient(ollamaURL, modelName)
+
+        jobs := make(chan scanner.Vulnerability, len(vulns))
+        results := make(chan error, len(vulns))
+
+        ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSec)*time.Second)
+        defer cancel()
+
+        var wg sync.WaitGroup
+
+        for i := 0; i < concurrency; i++ {
+            wg.Add(1)
+            go func() {
+                defer wg.Done()
+                for v := range jobs {
+                    select {
+                    case <-ctx.Done():
+                        results <- ctx.Err()
+                        return
+                    default:
+                    }
+
+                    color.New(color.FgYellow).Printf("\n[+] Analiz ediliyor: %s:%d (%s)\n", v.FilePath, v.Line, v.Type)
+                    analysis, patchText, err := client.AnalyzeAndFix(v)
+                    if err != nil {
+                        color.New(color.FgRed).Printf("LLM hatasi (%s:%d): %v\n", v.FilePath, v.Line, err)
+                        results <- err
+                        continue
+                    }
+
+                    reporter.PrintVulnerabilityWithFix(v, analysis, patchText)
+
+                    if autoFix && patchText != "" {
+                        err := patch.ApplyLineFix(v.FilePath, v.Line, patchText)
+                        if err != nil {
+                            color.New(color.FgRed).Printf("Yama uygulanamadi: %v\n", err)
+                            results <- err
+                        } else {
+                            color.New(color.FgCyan).Printf("=> [AUTO-FIX] %s:%d basariyla duzeltildi!\n", v.FilePath, v.Line)
+                            results <- nil
+                        }
+                    } else {
+                        results <- nil
+                    }
+                }
+            }()
+        }
+
+        for _, v := range vulns {
+            jobs <- v
+        }
+        close(jobs)
+
+        wg.Wait()
+        close(results)
+
         fmt.Println("\nScan tamamlandi.")
     },
 }

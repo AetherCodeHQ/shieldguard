@@ -1,8 +1,9 @@
-package scanner
+﻿package scanner
 
 import (
     "bufio"
-    "errors"
+    "bytes"
+    "go/token"
     "os"
     "path/filepath"
     "regexp"
@@ -10,59 +11,85 @@ import (
 )
 
 type Vulnerability struct {
-    FilePath string
-    Line     int
-    Type     string
-    Score    float64
-    Snippet  string
+    FilePath string  `json:"file_path"`
+    Line     int     `json:"line"`
+    Type     string  `json:"type"`
+    Score    float64 `json:"score"`
+    Snippet  string  `json:"snippet"`
 }
 
 type Scanner struct {
-    Root  string
-    rules []rule
-}
-
-type rule struct {
-    Name    string
-    Pattern *regexp.Regexp
-    Score   float64
+    RootPath string
 }
 
 func NewScanner(root string) *Scanner {
-    rules := []rule{
-        {Name: "HardcodedSecret", Pattern: regexp.MustCompile(`(?i)(api[_-]?key|secret|password)\s*[:=]\s*["']?[A-Za-z0-9\-_]{8,}["']?`), Score: 0.95},
-        {Name: "CommandInjection", Pattern: regexp.MustCompile(`(?i)(exec\.Command|system\(|popen\()`), Score: 0.8},
-        {Name: "SQLConcat", Pattern: regexp.MustCompile(`(?i)(SELECT|INSERT|UPDATE|DELETE).*\+.*`), Score: 0.7},
+    return &Scanner{RootPath: root}
+}
+
+func ExtractSnippetFromPos(path string, start token.Pos, end token.Pos, fset *token.FileSet) string {
+    file := fset.File(start)
+    if file == nil {
+        return ""
     }
-    return &Scanner{Root: root, rules: rules}
+    startLine := file.Line(start)
+    endLine := file.Line(end)
+
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return ""
+    }
+    lines := bytes.Split(data, []byte("\n"))
+
+    if startLine <= 0 {
+        startLine = 1
+    }
+    if endLine > len(lines) {
+        endLine = len(lines)
+    }
+
+    return string(bytes.Join(lines[startLine-1:endLine], []byte("\n")))
 }
 
 func (s *Scanner) Scan() ([]Vulnerability, error) {
-    if s.Root == "" {
-        return nil, errors.New("root path empty")
-    }
     var vulns []Vulnerability
-    err := filepath.WalkDir(s.Root, func(path string, d os.DirEntry, err error) error {
-        if err != nil || d.IsDir() {
+
+    secretRegex := regexp.MustCompile(`(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*["']([^"']+)["']`)
+    cmdRegex := regexp.MustCompile(`exec\.Command\(["'](sh|bash|cmd)["']`)
+
+    err := filepath.Walk(s.RootPath, func(path string, info os.FileInfo, err error) error {
+        if err != nil || info.IsDir() {
             return nil
         }
-        f, err := os.Open(path)
-        if err != nil {
-            return nil
-        }
-        defer f.Close()
-        sc := bufio.NewScanner(f)
-        lineNo := 0
-        for sc.Scan() {
-            lineNo++
-            line := sc.Text()
-            for _, r := range s.rules {
-                if r.Pattern.MatchString(line) {
+
+        if strings.HasSuffix(path, ".go") {
+            file, err := os.Open(path)
+            if err != nil {
+                return nil
+            }
+            defer file.Close()
+
+            sc := bufio.NewScanner(file)
+            lineNo := 0
+            for sc.Scan() {
+                lineNo++
+                line := sc.Text()
+
+                if secretRegex.MatchString(line) {
                     vulns = append(vulns, Vulnerability{
                         FilePath: path,
                         Line:     lineNo,
-                        Type:     r.Name,
-                        Score:    r.Score,
+                        Type:     "HardcodedSecret",
+                        Score:    0.95,
+                        Snippet:  strings.TrimSpace(line),
+                    })
+                }
+
+                if cmdRegex.MatchString(line) {
+                    vulns = append(vulns, Vulnerability{
+                        FilePath: path,
+                        Line:     lineNo,
+                        Type:     "CommandInjection",
+                        Score:    0.80,
                         Snippet:  strings.TrimSpace(line),
                     })
                 }
@@ -70,5 +97,6 @@ func (s *Scanner) Scan() ([]Vulnerability, error) {
         }
         return nil
     })
+
     return vulns, err
 }
