@@ -1,9 +1,15 @@
 package main
 
-import "os/exec"
-
-var apiKey = os.Getenv("API_KEY")
+import (
+    "fmt"
+    "os"
+    "os/exec"
+)
 
 func main() {
-exec.Command("ls", "/tmp")
+    var apiKey = "SECRET_ABCDEF12345"
+    fmt.Println("Vulnerable App Running...", apiKey)
+
+    cmd := exec.Command("sh", "-c", "ls /tmp")
+    _ = cmd.Run()
 }

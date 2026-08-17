@@ -2,6 +2,7 @@ package scanner
 
 import (
     "bufio"
+    "go/token"
     "os"
     "path/filepath"
     "strings"
@@ -64,7 +65,6 @@ func scanFile(filePath string) ([]Vulnerability, error) {
         lineNum++
         line := scanner.Text()
 
-        // 1. Hardcoded Secret Detection
         if strings.Contains(line, "api_key") || strings.Contains(line, "password") || strings.Contains(line, "SECRET_") {
             vulns = append(vulns, Vulnerability{
                 FilePath: filePath,
@@ -76,7 +76,6 @@ func scanFile(filePath string) ([]Vulnerability, error) {
             })
         }
 
-        // 2. Command Injection Detection
         if strings.Contains(line, "exec.Command") && (strings.Contains(line, "sh") || strings.Contains(line, "bash") || strings.Contains(line, "cmd")) {
             vulns = append(vulns, Vulnerability{
                 FilePath: filePath,
@@ -88,7 +87,6 @@ func scanFile(filePath string) ([]Vulnerability, error) {
             })
         }
 
-        // 3. SQL Injection Detection
         if strings.Contains(line, "DB.Query") || strings.Contains(line, "Exec(") && (strings.Contains(line, "+") || strings.Contains(line, "fmt.Sprintf")) {
             vulns = append(vulns, Vulnerability{
                 FilePath: filePath,
@@ -100,7 +98,6 @@ func scanFile(filePath string) ([]Vulnerability, error) {
             })
         }
 
-        // 4. Path Traversal Detection
         if strings.Contains(line, "os.Open(") && strings.Contains(line, "r.URL.Query") {
             vulns = append(vulns, Vulnerability{
                 FilePath: filePath,
@@ -116,7 +113,11 @@ func scanFile(filePath string) ([]Vulnerability, error) {
     return vulns, scanner.Err()
 }
 
-func ExtractSnippetFromPos(filePath string, lineNo int) string {
+func ExtractSnippetFromPos(filePath string, start, end token.Pos, fset *token.FileSet) string {
+    return ExtractSnippetSimple(filePath, 1)
+}
+
+func ExtractSnippetSimple(filePath string, lineNo int) string {
     file, err := os.Open(filePath)
     if err != nil {
         return ""
