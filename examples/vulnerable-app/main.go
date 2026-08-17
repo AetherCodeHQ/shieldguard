@@ -2,8 +2,8 @@ package main
 
 import "os/exec"
 
-var apiKey = "SECRET_ABCDEF12345"
+var apiKey = os.Getenv("API_KEY")
 
 func main() {
-    exec.Command("sh", "-c", "ls /tmp")
+exec.Command("ls", "/tmp")
 }

@@ -2,101 +2,134 @@ package scanner
 
 import (
     "bufio"
-    "bytes"
-    "go/token"
     "os"
     "path/filepath"
-    "regexp"
     "strings"
 )
 
 type Vulnerability struct {
-    FilePath string  `json:"file_path"`
-    Line     int     `json:"line"`
-    Type     string  `json:"type"`
-    Score    float64 `json:"score"`
-    Snippet  string  `json:"snippet"`
+    FilePath string
+    Line     int
+    Type     string
+    Severity string
+    Score    float64
+    Snippet  string
 }
 
 type Scanner struct {
-    RootPath string
+    targetDir string
 }
 
-func NewScanner(root string) *Scanner {
-    return &Scanner{RootPath: root}
-}
-
-func ExtractSnippetFromPos(path string, start token.Pos, end token.Pos, fset *token.FileSet) string {
-    file := fset.File(start)
-    if file == nil {
-        return ""
-    }
-    startLine := file.Line(start)
-    endLine := file.Line(end)
-
-    data, err := os.ReadFile(path)
-    if err != nil {
-        return ""
-    }
-    lines := bytes.Split(data, []byte("\n"))
-
-    if startLine <= 0 {
-        startLine = 1
-    }
-    if endLine > len(lines) {
-        endLine = len(lines)
-    }
-
-    return string(bytes.Join(lines[startLine-1:endLine], []byte("\n")))
+func NewScanner(targetDir string) *Scanner {
+    return &Scanner{targetDir: targetDir}
 }
 
 func (s *Scanner) Scan() ([]Vulnerability, error) {
     var vulns []Vulnerability
 
-    secretRegex := regexp.MustCompile(`(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*["']([^"']+)["']`)
-    cmdRegex := regexp.MustCompile(`exec\.Command\(["'](sh|bash|cmd)["']`)
-
-    err := filepath.Walk(s.RootPath, func(path string, info os.FileInfo, err error) error {
-        if err != nil || info.IsDir() {
-            return nil
+    err := filepath.Walk(s.targetDir, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
         }
 
-        if strings.HasSuffix(path, ".go") {
-            file, err := os.Open(path)
-            if err != nil {
-                return nil
-            }
-            defer file.Close()
+        if info.IsDir() && (info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules") {
+            return filepath.SkipDir
+        }
 
-            sc := bufio.NewScanner(file)
-            lineNo := 0
-            for sc.Scan() {
-                lineNo++
-                line := sc.Text()
-
-                if secretRegex.MatchString(line) {
-                    vulns = append(vulns, Vulnerability{
-                        FilePath: path,
-                        Line:     lineNo,
-                        Type:     "HardcodedSecret",
-                        Score:    0.95,
-                        Snippet:  strings.TrimSpace(line),
-                    })
-                }
-
-                if cmdRegex.MatchString(line) {
-                    vulns = append(vulns, Vulnerability{
-                        FilePath: path,
-                        Line:     lineNo,
-                        Type:     "CommandInjection",
-                        Score:    0.80,
-                        Snippet:  strings.TrimSpace(line),
-                    })
-                }
+        if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
+            fileVulns, err := scanFile(path)
+            if err == nil {
+                vulns = append(vulns, fileVulns...)
             }
         }
+
         return nil
     })
 
     return vulns, err
+}
+
+func scanFile(filePath string) ([]Vulnerability, error) {
+    file, err := os.Open(filePath)
+    if err != nil {
+        return nil, err
+    }
+    defer file.Close()
+
+    var vulns []Vulnerability
+    scanner := bufio.NewScanner(file)
+    lineNum := 0
+
+    for scanner.Scan() {
+        lineNum++
+        line := scanner.Text()
+
+        // 1. Hardcoded Secret Detection
+        if strings.Contains(line, "api_key") || strings.Contains(line, "password") || strings.Contains(line, "SECRET_") {
+            vulns = append(vulns, Vulnerability{
+                FilePath: filePath,
+                Line:     lineNum,
+                Type:     "HardcodedSecret",
+                Severity: "HIGH",
+                Score:    0.95,
+                Snippet:  strings.TrimSpace(line),
+            })
+        }
+
+        // 2. Command Injection Detection
+        if strings.Contains(line, "exec.Command") && (strings.Contains(line, "sh") || strings.Contains(line, "bash") || strings.Contains(line, "cmd")) {
+            vulns = append(vulns, Vulnerability{
+                FilePath: filePath,
+                Line:     lineNum,
+                Type:     "CommandInjection",
+                Severity: "CRITICAL",
+                Score:    0.90,
+                Snippet:  strings.TrimSpace(line),
+            })
+        }
+
+        // 3. SQL Injection Detection
+        if strings.Contains(line, "DB.Query") || strings.Contains(line, "Exec(") && (strings.Contains(line, "+") || strings.Contains(line, "fmt.Sprintf")) {
+            vulns = append(vulns, Vulnerability{
+                FilePath: filePath,
+                Line:     lineNum,
+                Type:     "SQLInjection",
+                Severity: "CRITICAL",
+                Score:    0.92,
+                Snippet:  strings.TrimSpace(line),
+            })
+        }
+
+        // 4. Path Traversal Detection
+        if strings.Contains(line, "os.Open(") && strings.Contains(line, "r.URL.Query") {
+            vulns = append(vulns, Vulnerability{
+                FilePath: filePath,
+                Line:     lineNum,
+                Type:     "PathTraversal",
+                Severity: "HIGH",
+                Score:    0.85,
+                Snippet:  strings.TrimSpace(line),
+            })
+        }
+    }
+
+    return vulns, scanner.Err()
+}
+
+func ExtractSnippetFromPos(filePath string, lineNo int) string {
+    file, err := os.Open(filePath)
+    if err != nil {
+        return ""
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    currentLine := 0
+    for scanner.Scan() {
+        currentLine++
+        if currentLine == lineNo {
+            return strings.TrimSpace(scanner.Text())
+        }
+    }
+    return ""
 }

@@ -23,65 +23,71 @@ var autoFix bool
 var ollamaURL string
 var concurrency int
 var timeoutSec int
+var reportFormat string
+var outputPath string
 
 func init() {
-    scanCmd.Flags().StringVar(&scanPath, "path", ".", "Taranacak proje dizini")
-    scanCmd.Flags().StringVar(&modelName, "model", "", "Kullanilacak Ollama modeli")
+    scanCmd.Flags().StringVar(&scanPath, "path", ".", "Target project directory to scan")
+    scanCmd.Flags().StringVar(&modelName, "model", "", "Ollama model name to use")
     scanCmd.Flags().StringVar(&ollamaURL, "ollama-url", "", "Ollama base URL")
-    scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Yamalari otomatik uygula")
-    scanCmd.Flags().IntVar(&concurrency, "concurrency", 0, "Eszamanli LLM analiz worker sayisi")
-    scanCmd.Flags().IntVar(&timeoutSec, "timeout", 0, "Toplam analiz zaman asimi (saniye)")
+    scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Automatically apply LLM code patches")
+    scanCmd.Flags().IntVar(&concurrency, "concurrency", 0, "Number of concurrent LLM workers")
+    scanCmd.Flags().IntVar(&timeoutSec, "timeout", 0, "Total scan timeout in seconds")
+    scanCmd.Flags().StringVar(&reportFormat, "format", "", "Export report format (json or html)")
+    scanCmd.Flags().StringVar(&outputPath, "output", "shieldguard-report", "Output filename for the report")
 
     rootCmd.AddCommand(scanCmd)
 }
 
 func resolveConfig(cmd *cobra.Command) {
-    if cmd.Flags().Changed("model") {
-        // CLI bayrağı öncelikli
-    } else if viper.IsSet("model") {
-        modelName = viper.GetString("model")
-    } else {
-        modelName = "llama3"
+    if !cmd.Flags().Changed("model") {
+        if viper.IsSet("model") {
+            modelName = viper.GetString("model")
+        } else {
+            modelName = "llama3"
+        }
     }
 
-    if cmd.Flags().Changed("ollama-url") {
-    } else if viper.IsSet("ollama_url") {
-        ollamaURL = viper.GetString("ollama_url")
-    } else {
-        ollamaURL = "http://localhost:11434"
+    if !cmd.Flags().Changed("ollama-url") {
+        if viper.IsSet("ollama_url") {
+            ollamaURL = viper.GetString("ollama_url")
+        } else {
+            ollamaURL = "http://localhost:11434"
+        }
     }
 
-    if cmd.Flags().Changed("auto-fix") {
-    } else if viper.IsSet("auto_fix") {
+    if !cmd.Flags().Changed("auto-fix") && viper.IsSet("auto_fix") {
         autoFix = viper.GetBool("auto_fix")
     }
 
-    if cmd.Flags().Changed("concurrency") {
-    } else if viper.IsSet("concurrency") {
-        concurrency = viper.GetInt("concurrency")
-    } else {
-        concurrency = 3
+    if !cmd.Flags().Changed("concurrency") {
+        if viper.IsSet("concurrency") {
+            concurrency = viper.GetInt("concurrency")
+        } else {
+            concurrency = 3
+        }
     }
 
-    if cmd.Flags().Changed("timeout") {
-    } else if viper.IsSet("timeout") {
-        timeoutSec = viper.GetInt("timeout")
-    } else {
-        timeoutSec = 120
+    if !cmd.Flags().Changed("timeout") {
+        if viper.IsSet("timeout") {
+            timeoutSec = viper.GetInt("timeout")
+        } else {
+            timeoutSec = 120
+        }
     }
 }
 
 var scanCmd = &cobra.Command{
     Use:   "scan",
-    Short: "Kod tabanini tarar ve olasi guvenlik aciklarini raporlar",
+    Short: "Scans the codebase for security vulnerabilities and remediates them via local LLMs",
     Run: func(cmd *cobra.Command, args []string) {
         resolveConfig(cmd)
 
         if viper.ConfigFileUsed() != "" {
-            color.New(color.FgCyan).Printf("Konfigürasyon yuklendi: %s\n", viper.ConfigFileUsed())
+            color.New(color.FgCyan).Printf("Loaded configuration file: %s\n", viper.ConfigFileUsed())
         }
 
-        color.New(color.FgGreen).Printf("Scan baslatiliyor: %s (model=%s, workers=%d) auto-fix=%v\n", scanPath, modelName, concurrency, autoFix)
+        color.New(color.FgGreen).Printf("Starting scan v1.0.1: %s (model=%s, workers=%d, auto-fix=%v)\n", scanPath, modelName, concurrency, autoFix)
 
         absPath, _ := filepath.Abs(scanPath)
         reporter := report.NewReporter()
@@ -89,16 +95,28 @@ var scanCmd = &cobra.Command{
 
         vulns, err := sc.Scan()
         if err != nil {
-            color.New(color.FgRed).Printf("Scanner hatasi: %v\n", err)
+            color.New(color.FgRed).Printf("Scanner error: %v\n", err)
             return
         }
         reporter.PrintSummary(vulns)
+
+        // Export report if format specified
+        if reportFormat == "json" {
+            out := outputPath + ".json"
+            _ = reporter.ExportJSON(out, vulns)
+            color.New(color.FgCyan).Printf("[+] JSON report exported to: %s\n", out)
+        } else if reportFormat == "html" {
+            out := outputPath + ".html"
+            _ = reporter.ExportHTML(out, vulns)
+            color.New(color.FgCyan).Printf("[+] HTML report exported to: %s\n", out)
+        }
+
         if len(vulns) == 0 {
             return
         }
 
         if autoFix && !patch.IsWorkTreeClean() {
-            color.New(color.FgYellow).Println("[!] UYARI: Git calisma dizini temiz degil. Degisikliklerinizi kaydetmeniz onerilir.")
+            color.New(color.FgYellow).Println("[!] WARNING: Git working tree is not clean. Stashing or committing uncommitted changes is recommended.")
         }
 
         client := ollama.NewClient(ollamaURL, modelName)
@@ -123,10 +141,10 @@ var scanCmd = &cobra.Command{
                     default:
                     }
 
-                    color.New(color.FgYellow).Printf("\n[+] Analiz ediliyor: %s:%d (%s)\n", v.FilePath, v.Line, v.Type)
+                    color.New(color.FgYellow).Printf("\n[+] Analyzing: %s:%d (%s)\n", v.FilePath, v.Line, v.Type)
                     analysis, patchText, err := client.AnalyzeAndFix(v)
                     if err != nil {
-                        color.New(color.FgRed).Printf("LLM hatasi (%s:%d): %v\n", v.FilePath, v.Line, err)
+                        color.New(color.FgRed).Printf("LLM error (%s:%d): %v\n", v.FilePath, v.Line, err)
                         results <- err
                         continue
                     }
@@ -136,10 +154,10 @@ var scanCmd = &cobra.Command{
                     if autoFix && patchText != "" {
                         err := patch.ApplyLineFix(v.FilePath, v.Line, patchText)
                         if err != nil {
-                            color.New(color.FgRed).Printf("Yama uygulanamadi: %v\n", err)
+                            color.New(color.FgRed).Printf("Failed to apply patch: %v\n", err)
                             results <- err
                         } else {
-                            color.New(color.FgCyan).Printf("=> [AUTO-FIX] %s:%d basariyla duzeltildi!\n", v.FilePath, v.Line)
+                            color.New(color.FgCyan).Printf("=> [AUTO-FIX] Successfully remediated %s:%d!\n", v.FilePath, v.Line)
                             results <- nil
                         }
                     } else {
@@ -157,6 +175,6 @@ var scanCmd = &cobra.Command{
         wg.Wait()
         close(results)
 
-        fmt.Println("\nScan tamamlandi.")
+        fmt.Println("\nScan completed.")
     },
 }
