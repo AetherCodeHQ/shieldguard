@@ -1,0 +1,10 @@
+﻿# Binary outputs
+*.exe
+*.exe.stackdump
+*.test
+*.out
+shieldguard.exe
+
+# OS files
+.DS_Store
+Thumbs.db
