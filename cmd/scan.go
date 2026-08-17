@@ -9,6 +9,7 @@ import (
 
     "github.com/fatih/color"
     "github.com/spf13/cobra"
+    "github.com/spf13/viper"
 
     "github.com/Qyroxen/shieldguard/pkg/ollama"
     "github.com/Qyroxen/shieldguard/pkg/patch"
@@ -25,18 +26,61 @@ var timeoutSec int
 
 func init() {
     scanCmd.Flags().StringVar(&scanPath, "path", ".", "Taranacak proje dizini")
-    scanCmd.Flags().StringVar(&modelName, "model", "llama3", "Kullanilacak Ollama modeli")
-    scanCmd.Flags().StringVar(&ollamaURL, "ollama-url", "http://localhost:11434", "Ollama base URL")
+    scanCmd.Flags().StringVar(&modelName, "model", "", "Kullanilacak Ollama modeli")
+    scanCmd.Flags().StringVar(&ollamaURL, "ollama-url", "", "Ollama base URL")
     scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Yamalari otomatik uygula")
-    scanCmd.Flags().IntVar(&concurrency, "concurrency", 3, "Eszamanli LLM analiz worker sayisi")
-    scanCmd.Flags().IntVar(&timeoutSec, "timeout", 120, "Toplam analiz zaman asimi (saniye)")
+    scanCmd.Flags().IntVar(&concurrency, "concurrency", 0, "Eszamanli LLM analiz worker sayisi")
+    scanCmd.Flags().IntVar(&timeoutSec, "timeout", 0, "Toplam analiz zaman asimi (saniye)")
+
     rootCmd.AddCommand(scanCmd)
+}
+
+func resolveConfig() {
+    if scanCmd.Flags().Changed("model") {
+        // CLI bayrağı öncelikli
+    } else if viper.IsSet("model") {
+        modelName = viper.GetString("model")
+    } else {
+        modelName = "llama3"
+    }
+
+    if scanCmd.Flags().Changed("ollama-url") {
+    } else if viper.IsSet("ollama_url") {
+        ollamaURL = viper.GetString("ollama_url")
+    } else {
+        ollamaURL = "http://localhost:11434"
+    }
+
+    if scanCmd.Flags().Changed("auto-fix") {
+    } else if viper.IsSet("auto_fix") {
+        autoFix = viper.GetBool("auto_fix")
+    }
+
+    if scanCmd.Flags().Changed("concurrency") {
+    } else if viper.IsSet("concurrency") {
+        concurrency = viper.GetInt("concurrency")
+    } else {
+        concurrency = 3
+    }
+
+    if scanCmd.Flags().Changed("timeout") {
+    } else if viper.IsSet("timeout") {
+        timeoutSec = viper.GetInt("timeout")
+    } else {
+        timeoutSec = 120
+    }
 }
 
 var scanCmd = &cobra.Command{
     Use:   "scan",
     Short: "Kod tabanini tarar ve olasi guvenlik aciklarini raporlar",
     Run: func(cmd *cobra.Command, args []string) {
+        resolveConfig()
+
+        if viper.ConfigFileUsed() != "" {
+            color.New(color.FgCyan).Printf("Konfigürasyon yuklendi: %s\n", viper.ConfigFileUsed())
+        }
+
         color.New(color.FgGreen).Printf("Scan baslatiliyor: %s (model=%s, workers=%d) auto-fix=%v\n", scanPath, modelName, concurrency, autoFix)
 
         absPath, _ := filepath.Abs(scanPath)
