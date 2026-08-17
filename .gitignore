@@ -8,3 +8,12 @@ shieldguard.exe
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test coverage reports
+coverage.out
+coverage.html
+*.out
+
+# Binary build outputs
+shieldguard.exe
+*.exe
