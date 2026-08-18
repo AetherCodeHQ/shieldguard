@@ -98,7 +98,7 @@ func resolveConfig(cmd *cobra.Command) {
     }
 }
 
-// filterBySeverity: kullanici en az belirli seviyedeki bulgulari gormek isterse filtrele.
+// filterBySeverity: keep only findings at or above the requested level.
 func filterBySeverity(vulns []scanner.Vulnerability, minLevel string) []scanner.Vulnerability {
     minLevel = strings.ToUpper(strings.TrimSpace(minLevel))
     if minLevel == "" {
@@ -117,7 +117,7 @@ func filterBySeverity(vulns []scanner.Vulnerability, minLevel string) []scanner.
     return filtered
 }
 
-// worstSeverityRank: bulunan en yuksek zafiyet seviyesi (0 = yok).
+// worstSeverityRank: highest severity present in findings (0 = none).
 func worstSeverityRank(vulns []scanner.Vulnerability) int {
     worst := 0
     for _, v := range vulns {

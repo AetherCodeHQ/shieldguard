@@ -9,10 +9,10 @@ import (
 )
 
 func TestScanner_Scan(t *testing.T) {
-    // Geçici bir test dizini ve dosyası oluşturuyoruz
+    // Create a temporary test directory and file
     tempDir, err := os.MkdirTemp("", "shieldguard_test_*")
     if err != nil {
-        t.Fatalf("Gecici dizin olusturulamadi: %v", err)
+        t.Fatalf("could not create temp dir: %v", err)
     }
     defer os.RemoveAll(tempDir)
 
@@ -27,17 +27,17 @@ func main() {
 `
     testFilePath := filepath.Join(tempDir, "vulnerable.go")
     if err := os.WriteFile(testFilePath, []byte(mockCode), 0644); err != nil {
-        t.Fatalf("Test dosyasi yazilamadi: %v", err)
+        t.Fatalf("could not write test file: %v", err)
     }
 
     sc := NewScanner(tempDir)
     vulns, err := sc.Scan()
     if err != nil {
-        t.Fatalf("Scan sirasinda hata olustu: %v", err)
+        t.Fatalf("scan failed: %v", err)
     }
 
     if len(vulns) != 2 {
-        t.Fatalf("Beklenen zafiyet sayisi 2, bulunan: %d", len(vulns))
+        t.Fatalf("expected 2 vulnerabilities, got %d", len(vulns))
     }
 
     hasSecret := false
@@ -60,32 +60,32 @@ func main() {
 func TestExtractSnippetFromPos(t *testing.T) {
     tempFile, err := os.CreateTemp("", "snippet_test_*.go")
     if err != nil {
-        t.Fatalf("Gecici dosya olusturulamadi: %v", err)
+        t.Fatalf("could not create temp file: %v", err)
     }
     defer os.Remove(tempFile.Name())
 
     content := "package main\n\nfunc hello() {\n\tprintln(\"world\")\n}\n"
     if _, err := tempFile.WriteString(content); err != nil {
-        t.Fatalf("Icerik yazilamadi: %v", err)
+        t.Fatalf("could not write content: %v", err)
     }
     tempFile.Close()
 
     fset := token.NewFileSet()
     node, err := parser.ParseFile(fset, tempFile.Name(), content, 0)
     if err != nil {
-        t.Fatalf("AST parse hatasi: %v", err)
+        t.Fatalf("AST parse error: %v", err)
     }
 
     snippet := ExtractSnippetFromPos(tempFile.Name(), node.Pos(), node.End(), fset)
     if snippet == "" {
-        t.Errorf("Snippet bos döndü, AST pozisyon extraction basarisiz")
+        t.Errorf("snippet is empty, AST position extraction failed")
     }
 }
 
 func TestScanner_MultiLanguage(t *testing.T) {
     tempDir, err := os.MkdirTemp("", "shieldguard_ml_*")
     if err != nil {
-        t.Fatalf("Gecici dizin olusturulamadi: %v", err)
+        t.Fatalf("could not create temp dir: %v", err)
     }
     defer os.RemoveAll(tempDir)
 
@@ -123,14 +123,14 @@ func main() {
 
     for name, content := range files {
         if err := os.WriteFile(filepath.Join(tempDir, name), []byte(content), 0644); err != nil {
-            t.Fatalf("Test dosyasi yazilamadi %s: %v", name, err)
+            t.Fatalf("could not write test file %s: %v", name, err)
         }
     }
 
     sc := NewScanner(tempDir)
     vulns, err := sc.Scan()
     if err != nil {
-        t.Fatalf("Scan sirasinda hata: %v", err)
+        t.Fatalf("scan failed: %v", err)
     }
 
     got := map[string]bool{}
@@ -151,20 +151,20 @@ func main() {
 
     for _, c := range checks {
         if got[c.typ] != c.wantHit {
-            t.Errorf("Tip %s: beklenen hit=%v, bulunan=%v (vulns: %+v)", c.typ, c.wantHit, got[c.typ], vulns)
+            t.Errorf("type %s: expected hit=%v, got=%v (vulns: %+v)", c.typ, c.wantHit, got[c.typ], vulns)
         }
     }
 
     // Java CommandInjection da bulunmali
     if !got["CommandInjection"] {
-        t.Errorf("Java Runtime.exec tespit edilemedi")
+        t.Errorf("Java Runtime.exec was not detected")
     }
 }
 
 func TestScanner_CommentSkipped(t *testing.T) {
     tempDir, err := os.MkdirTemp("", "shieldguard_cm_*")
     if err != nil {
-        t.Fatalf("Gecici dizin olusturulamadi: %v", err)
+        t.Fatalf("could not create temp dir: %v", err)
     }
     defer os.RemoveAll(tempDir)
 
@@ -177,15 +177,15 @@ func main() {
 }
 `
     if err := os.WriteFile(filepath.Join(tempDir, "yorum.go"), []byte(mock), 0644); err != nil {
-        t.Fatalf("Dosya yazilamadi: %v", err)
+        t.Fatalf("could not write file: %v", err)
     }
 
     sc := NewScanner(tempDir)
     vulns, err := sc.Scan()
     if err != nil {
-        t.Fatalf("Scan hatasi: %v", err)
+        t.Fatalf("scan error: %v", err)
     }
     if len(vulns) != 0 {
-        t.Errorf("Yorum satirlari raporlanmamali, bulunan: %+v", vulns)
+        t.Errorf("comment lines must not be reported, found: %+v", vulns)
     }
 }

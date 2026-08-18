@@ -77,9 +77,9 @@ func (c *Client) AnalyzeAndFix(v scanner.Vulnerability) (string, string, error) 
         }
         _ = json.Unmarshal(bodyBytes, &errResp)
         if errResp.Error != "" {
-            return "", "", fmt.Errorf("ollama hatasi (http %d): %s", resp.StatusCode, errResp.Error)
+            return "", "", fmt.Errorf("ollama error (http %d): %s", resp.StatusCode, errResp.Error)
         }
-        return "", "", fmt.Errorf("ollama sunucusu hata dondurdu: status %d", resp.StatusCode)
+        return "", "", fmt.Errorf("ollama server returned an error: status %d", resp.StatusCode)
     }
 
     var genResp GenerateResponse
@@ -88,7 +88,7 @@ func (c *Client) AnalyzeAndFix(v scanner.Vulnerability) (string, string, error) 
     }
 
     if genResp.Error != "" {
-        return "", "", fmt.Errorf("ollama hatasi: %s", genResp.Error)
+        return "", "", fmt.Errorf("ollama error: %s", genResp.Error)
     }
 
     text := strings.TrimSpace(genResp.Response)

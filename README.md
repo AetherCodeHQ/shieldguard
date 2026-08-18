@@ -73,7 +73,7 @@ go build -o shieldguard.exe main.go
 
 **Exclude Files (`.shieldguardignore`):**
 ```text
-# ShieldGuard ignore dosyasi (gitignore tarzi)
+# ShieldGuard ignore file (gitignore style)
 examples/
 *_test.go
 generated/
@@ -88,15 +88,15 @@ generated/
 
 ## 📦 Release History
 
-| Sürüm | Ne Değişti |
+| Version | What Changed |
 |---|---|
-| **v2.0.1** | `.shieldguardignore` desteği (dosya/dizin hariç tutma), Go CommandInjection kuralında false-positive düzeltmesi |
-| **v2.0.0** | Çoklu dil desteği (7 dil, 25 kural), SARIF rapor (GitHub Code Scanning), `--severity` filtresi, `--fail-on` CI eşiği |
-| **v1.0.2** | CI dostu exit code (zafiyet bulunca 1 döner), merkezi versiyon + `--version` bayrağı, scanner false-positive azaltma (yorum satırı atlama), BOM temizliği, Go sürüm tutarlılığı |
-| **v1.0.1** | HTML/JSON rapor export, SQL Injection + Path Traversal kuralları, severity/skor sistemi, CHANGELOG |
-| **v1.0.0** | İlk resmi sürüm: SAST tarama motoru, Ollama LLM entegrasyonu (`--auto-fix`), worker pool, Viper konfigürasyon, GitHub Actions CI |
+| **v2.0.1** | `.shieldguardignore` support (exclude files/dirs), Go CommandInjection false-positive fix |
+| **v2.0.0** | Multi-language support (7 languages, 25 rules), SARIF report (GitHub Code Scanning), `--severity` filter, `--fail-on` CI threshold |
+| **v1.0.2** | CI-friendly exit codes (non-zero on findings), centralized versioning + `--version` flag, scanner false-positive reduction (comment skipping), BOM cleanup, Go version consistency |
+| **v1.0.1** | HTML/JSON report export, SQL Injection + Path Traversal rules, severity/score system, CHANGELOG |
+| **v1.0.0** | Initial release: SAST scanning engine, Ollama LLM integration (`--auto-fix`), worker pool, Viper config, GitHub Actions CI |
 
-Detaylı değişiklik listesi için [`CHANGELOG.md`](CHANGELOG.md) dosyasına bak.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full change history.
 
 ---
 

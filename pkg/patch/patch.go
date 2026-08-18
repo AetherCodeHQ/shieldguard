@@ -20,7 +20,7 @@ func IsWorkTreeClean() bool {
 func ApplyLineFix(filePath string, lineNo int, newCode string) error {
     file, err := os.Open(filePath)
     if err != nil {
-        return fmt.Errorf("dosya acilamadi: %w", err)
+        return fmt.Errorf("could not open file: %w", err)
     }
     defer file.Close()
 
@@ -44,7 +44,7 @@ func ApplyLineFix(filePath string, lineNo int, newCode string) error {
     content := strings.Join(lines, "\n") + "\n"
     if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
         _ = exec.Command("git", "checkout", "--", filePath).Run()
-        return fmt.Errorf("yama yazilamadi, degisiklik geri alindi: %w", err)
+        return fmt.Errorf("could not write patch, change reverted: %w", err)
     }
     return nil
 }

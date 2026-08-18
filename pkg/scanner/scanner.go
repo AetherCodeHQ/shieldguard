@@ -27,14 +27,14 @@ type Rule struct {
     Check    func(line string) bool
 }
 
-// supportedExts: taranabilir dosya uzantilari.
+// supportedExts: file extensions that can be scanned.
 var supportedExts = map[string]bool{
     ".go": true, ".js": true, ".jsx": true, ".ts": true, ".tsx": true,
     ".py": true, ".java": true, ".php": true, ".rb": true,
     ".c": true, ".h": true, ".cpp": true, ".hpp": true, ".cc": true,
 }
 
-// rules: zafiyet kural katalogu (v2.0.0 - coklu dil).
+// rules: vulnerability rule catalog (v2.0.0 - multi-language).
 var rules = []Rule{
     // ---- Tum diller ----
     {
@@ -66,7 +66,7 @@ var rules = []Rule{
     {
         Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".go"},
         Check: func(l string) bool {
-            // Shell adlari tirnakli string olmali (degisken adi "cmd" yanlis pozitif vermesin)
+            // Shell names must be quoted strings (avoids flagging a variable named cmd)
             return strings.Contains(l, "exec.Command") &&
                 (strings.Contains(l, "\"sh\"") || strings.Contains(l, "\"bash\"") || strings.Contains(l, "\"cmd\""))
         },
@@ -285,7 +285,7 @@ func NewScanner(targetDir string) *Scanner {
     }
 }
 
-// loadIgnores: .shieldguardignore dosyasindaki desenleri okur (gitignore tarzi).
+// loadIgnores: reads patterns from the .shieldguardignore file (gitignore style).
 func loadIgnores(targetDir string) []string {
     var ignores []string
     ignorePath := filepath.Join(targetDir, ".shieldguardignore")
@@ -303,7 +303,7 @@ func loadIgnores(targetDir string) []string {
     return ignores
 }
 
-// isIgnored: verilen dosya/dizin ignore desenlerinden birine uyuyor mu?
+// isIgnored: does the given file/directory match any ignore pattern?
 func (s *Scanner) isIgnored(path string) bool {
     rel, err := filepath.Rel(s.targetDir, path)
     if err != nil {
@@ -312,11 +312,11 @@ func (s *Scanner) isIgnored(path string) bool {
     rel = filepath.ToSlash(rel)
     for _, pat := range s.ignores {
         pat = filepath.ToSlash(strings.TrimSuffix(pat, "/"))
-        // Tam eslesme (dosya)
+        // Exact match (file)
         if rel == pat {
             return true
         }
-        // Desen dizin ise (suffix / yoksa bile prefix kontrolu)
+        // If the pattern is a directory, also match its contents
         if strings.HasPrefix(rel, pat+"/") {
             return true
         }
@@ -381,7 +381,7 @@ func scanFile(filePath, ext string) ([]Vulnerability, error) {
         lineNum++
         line := scanner.Text()
 
-        // Yorum satiri ise atla (false-positive azaltma)
+        // Skip comment lines (reduces false positives)
         if isCommentLine(line, ext) {
             continue
         }
@@ -406,7 +406,7 @@ func scanFile(filePath, ext string) ([]Vulnerability, error) {
     return vulns, scanner.Err()
 }
 
-// ruleApplies: kural bu dosya uzantisi icin gecerli mi?
+// ruleApplies: does this rule apply to the given file extension?
 // Kuralin Exts listesi bos ise tum dillerde uygulanir.
 func ruleApplies(rule Rule, ext string) bool {
     if len(rule.Exts) == 0 {
@@ -442,7 +442,7 @@ func ExtractSnippetSimple(filePath string, lineNo int) string {
     return ""
 }
 
-// isCommentLine: satirin yorum olup olmadigini kontrol eder (dile gore).
+// isCommentLine: checks whether the line is a comment (per language).
 func isCommentLine(line, ext string) bool {
     t := strings.TrimSpace(line)
     switch ext {
@@ -467,7 +467,7 @@ func hasSecretKeyword(line string) bool {
         strings.Contains(lower, "token")
 }
 
-// hasAssignment: atama operatoru iceriyor mu? (degisken tanimi / kullanim degil)
+// hasAssignment: does the line contain an assignment operator?
 func hasAssignment(line string) bool {
     return strings.Contains(line, "=") || strings.Contains(line, ":=")
 }

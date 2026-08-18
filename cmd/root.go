@@ -25,7 +25,7 @@ func Execute() {
 
 func init() {
     cobra.OnInitialize(initConfig)
-    rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Konfigürasyon dosyası yolu (varsayılan: .shieldguard.yaml)")
+    rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Path to the configuration file (default: .shieldguard.yaml)")
 }
 
 func initConfig() {
@@ -40,6 +40,6 @@ func initConfig() {
     viper.AutomaticEnv()
 
     if err := viper.ReadInConfig(); err == nil {
-        // Konfigürasyon dosyası başarıyla yüklendi
+        // Configuration file loaded successfully
     }
 }

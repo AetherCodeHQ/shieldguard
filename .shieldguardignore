@@ -1,11 +1,11 @@
-# ShieldGuard ignore dosyasi (gitignore tarzi)
-# Satir basi # ile baslayan satirlar yorumdur.
+# ShieldGuard ignore file (gitignore style)
+# Lines starting with # are comments.
 
-# Ornek zafiyetli uygulama - bilincli olarak zafiyet icerir
+# Example vulnerable app - intentionally contains vulnerabilities
 examples/
 
-# Test mock'lari - bilincli zafiyet icerir
+# Test mocks - intentionally contain vulnerabilities
 *_test.go
 
-# Kural katalogunun kendisi - desenler kendi kendini tetikler
+# The rule catalog itself - patterns self-trigger
 pkg/scanner/scanner.go
