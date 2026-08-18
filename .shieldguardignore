@@ -1,0 +1,11 @@
+# ShieldGuard ignore dosyasi (gitignore tarzi)
+# Satir basi # ile baslayan satirlar yorumdur.
+
+# Ornek zafiyetli uygulama - bilincli olarak zafiyet icerir
+examples/
+
+# Test mock'lari - bilincli zafiyet icerir
+*_test.go
+
+# Kural katalogunun kendisi - desenler kendi kendini tetikler
+pkg/scanner/scanner.go

@@ -71,6 +71,14 @@ go build -o shieldguard.exe main.go
 .\shieldguard.exe scan --path ./examples/vulnerable-app --fail-on high
 ```
 
+**Exclude Files (`.shieldguardignore`):**
+```text
+# ShieldGuard ignore dosyasi (gitignore tarzi)
+examples/
+*_test.go
+generated/
+```
+
 **Scan with Auto-Fix (LLM Remediation):**
 ```bash
 .\shieldguard.exe scan --path ./examples/vulnerable-app --model llama3 --auto-fix
@@ -82,6 +90,7 @@ go build -o shieldguard.exe main.go
 
 | Sürüm | Ne Değişti |
 |---|---|
+| **v2.0.1** | `.shieldguardignore` desteği (dosya/dizin hariç tutma), Go CommandInjection kuralında false-positive düzeltmesi |
 | **v2.0.0** | Çoklu dil desteği (7 dil, 25 kural), SARIF rapor (GitHub Code Scanning), `--severity` filtresi, `--fail-on` CI eşiği |
 | **v1.0.2** | CI dostu exit code (zafiyet bulunca 1 döner), merkezi versiyon + `--version` bayrağı, scanner false-positive azaltma (yorum satırı atlama), BOM temizliği, Go sürüm tutarlılığı |
 | **v1.0.1** | HTML/JSON rapor export, SQL Injection + Path Traversal kuralları, severity/skor sistemi, CHANGELOG |

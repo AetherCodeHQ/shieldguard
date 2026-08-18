@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.0.1] - 2026-08-18
+### Added
+- **`.shieldguardignore` Support:** Gitignore-style exclude file so users can skip files/directories (e.g. test mocks, generated code) during scans.
+
+### Fixed
+- **CommandInjection False Positive (Go):** Rule now requires shell names as quoted strings (`"sh"`, `"bash"`, `"cmd"`), so a variable named `cmd` is no longer flagged.
+- **Self-Scan Cleanup:** Added `.shieldguardignore` so ShieldGuard's own rule catalog and test mocks are excluded — dogfooding the tool on itself now reports only real findings.
+
 ## [v2.0.0] - 2026-08-18
 ### Added
 - **Multi-Language Support:** Scans Go, JavaScript/TypeScript, Python, Java, PHP, Ruby, and C/C++ (v1 only scanned Go).

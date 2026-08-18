@@ -66,8 +66,9 @@ var rules = []Rule{
     {
         Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".go"},
         Check: func(l string) bool {
+            // Shell adlari tirnakli string olmali (degisken adi "cmd" yanlis pozitif vermesin)
             return strings.Contains(l, "exec.Command") &&
-                (strings.Contains(l, "sh") || strings.Contains(l, "bash") || strings.Contains(l, "cmd"))
+                (strings.Contains(l, "\"sh\"") || strings.Contains(l, "\"bash\"") || strings.Contains(l, "\"cmd\""))
         },
     },
     {
@@ -274,10 +275,57 @@ var rules = []Rule{
 
 type Scanner struct {
     targetDir string
+    ignores   []string
 }
 
 func NewScanner(targetDir string) *Scanner {
-    return &Scanner{targetDir: targetDir}
+    return &Scanner{
+        targetDir: targetDir,
+        ignores:   loadIgnores(targetDir),
+    }
+}
+
+// loadIgnores: .shieldguardignore dosyasindaki desenleri okur (gitignore tarzi).
+func loadIgnores(targetDir string) []string {
+    var ignores []string
+    ignorePath := filepath.Join(targetDir, ".shieldguardignore")
+    data, err := os.ReadFile(ignorePath)
+    if err != nil {
+        return ignores
+    }
+    for _, line := range strings.Split(string(data), "\n") {
+        line = strings.TrimSpace(line)
+        if line == "" || strings.HasPrefix(line, "#") {
+            continue
+        }
+        ignores = append(ignores, line)
+    }
+    return ignores
+}
+
+// isIgnored: verilen dosya/dizin ignore desenlerinden birine uyuyor mu?
+func (s *Scanner) isIgnored(path string) bool {
+    rel, err := filepath.Rel(s.targetDir, path)
+    if err != nil {
+        return false
+    }
+    rel = filepath.ToSlash(rel)
+    for _, pat := range s.ignores {
+        pat = filepath.ToSlash(strings.TrimSuffix(pat, "/"))
+        // Tam eslesme (dosya)
+        if rel == pat {
+            return true
+        }
+        // Desen dizin ise (suffix / yoksa bile prefix kontrolu)
+        if strings.HasPrefix(rel, pat+"/") {
+            return true
+        }
+        // Basit glob (tek segment, ornek: *.test.go)
+        if ok, _ := filepath.Match(pat, filepath.Base(rel)); ok {
+            return true
+        }
+    }
+    return false
 }
 
 func (s *Scanner) Scan() ([]Vulnerability, error) {
@@ -288,8 +336,18 @@ func (s *Scanner) Scan() ([]Vulnerability, error) {
             return err
         }
 
-        if info.IsDir() && (info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == "__pycache__") {
-            return filepath.SkipDir
+        if info.IsDir() {
+            if info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == "__pycache__" {
+                return filepath.SkipDir
+            }
+            if s.isIgnored(path) {
+                return filepath.SkipDir
+            }
+            return nil
+        }
+
+        if s.isIgnored(path) {
+            return nil
         }
 
         if !info.IsDir() {
