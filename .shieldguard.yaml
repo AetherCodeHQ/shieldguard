@@ -1,6 +1,7 @@
-# ShieldGuard Konfigürasyon Dosyası
 model: llama3
 ollama_url: http://localhost:11434
 auto_fix: false
 concurrency: 3
 timeout: 120
+severity: ""
+fail_on: any

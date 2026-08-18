@@ -56,6 +56,21 @@ go build -o shieldguard.exe main.go
 .\shieldguard.exe scan --path ./examples/vulnerable-app
 ```
 
+**Filter by Severity:**
+```bash
+.\shieldguard.exe scan --path ./examples/vulnerable-app --severity critical
+```
+
+**SARIF Report (GitHub Code Scanning):**
+```bash
+.\shieldguard.exe scan --path ./examples/vulnerable-app --format sarif --output scan-report
+```
+
+**Fail the CI build when high-severity issues are found:**
+```bash
+.\shieldguard.exe scan --path ./examples/vulnerable-app --fail-on high
+```
+
 **Scan with Auto-Fix (LLM Remediation):**
 ```bash
 .\shieldguard.exe scan --path ./examples/vulnerable-app --model llama3 --auto-fix
@@ -67,6 +82,7 @@ go build -o shieldguard.exe main.go
 
 | Sürüm | Ne Değişti |
 |---|---|
+| **v2.0.0** | Çoklu dil desteği (7 dil, 25 kural), SARIF rapor (GitHub Code Scanning), `--severity` filtresi, `--fail-on` CI eşiği |
 | **v1.0.2** | CI dostu exit code (zafiyet bulunca 1 döner), merkezi versiyon + `--version` bayrağı, scanner false-positive azaltma (yorum satırı atlama), BOM temizliği, Go sürüm tutarlılığı |
 | **v1.0.1** | HTML/JSON rapor export, SQL Injection + Path Traversal kuralları, severity/skor sistemi, CHANGELOG |
 | **v1.0.0** | İlk resmi sürüm: SAST tarama motoru, Ollama LLM entegrasyonu (`--auto-fix`), worker pool, Viper konfigürasyon, GitHub Actions CI |

@@ -2,9 +2,10 @@ package cmd
 
 import (
     "context"
-    "os"
     "fmt"
+    "os"
     "path/filepath"
+    "strings"
     "sync"
     "time"
 
@@ -26,6 +27,15 @@ var concurrency int
 var timeoutSec int
 var reportFormat string
 var outputPath string
+var severityFilter string
+var failOn string
+
+var severityRank = map[string]int{
+    "LOW":      1,
+    "MEDIUM":   2,
+    "HIGH":     3,
+    "CRITICAL": 4,
+}
 
 func init() {
     scanCmd.Flags().StringVar(&scanPath, "path", ".", "Target project directory to scan")
@@ -34,8 +44,10 @@ func init() {
     scanCmd.Flags().BoolVar(&autoFix, "auto-fix", false, "Automatically apply LLM code patches")
     scanCmd.Flags().IntVar(&concurrency, "concurrency", 0, "Number of concurrent LLM workers")
     scanCmd.Flags().IntVar(&timeoutSec, "timeout", 0, "Total scan timeout in seconds")
-    scanCmd.Flags().StringVar(&reportFormat, "format", "", "Export report format (json or html)")
+    scanCmd.Flags().StringVar(&reportFormat, "format", "", "Export report format (json, html or sarif)")
     scanCmd.Flags().StringVar(&outputPath, "output", "shieldguard-report", "Output filename for the report")
+    scanCmd.Flags().StringVar(&severityFilter, "severity", "", "Only report findings at or above this level (low, medium, high, critical)")
+    scanCmd.Flags().StringVar(&failOn, "fail-on", "", "Exit with code 1 when findings reach this level (any, low, medium, high, critical, none)")
 
     rootCmd.AddCommand(scanCmd)
 }
@@ -76,6 +88,44 @@ func resolveConfig(cmd *cobra.Command) {
             timeoutSec = 120
         }
     }
+
+    if !cmd.Flags().Changed("severity") && viper.IsSet("severity") {
+        severityFilter = viper.GetString("severity")
+    }
+
+    if !cmd.Flags().Changed("fail-on") && viper.IsSet("fail_on") {
+        failOn = viper.GetString("fail_on")
+    }
+}
+
+// filterBySeverity: kullanici en az belirli seviyedeki bulgulari gormek isterse filtrele.
+func filterBySeverity(vulns []scanner.Vulnerability, minLevel string) []scanner.Vulnerability {
+    minLevel = strings.ToUpper(strings.TrimSpace(minLevel))
+    if minLevel == "" {
+        return vulns
+    }
+    minRank, ok := severityRank[minLevel]
+    if !ok {
+        return vulns
+    }
+    filtered := make([]scanner.Vulnerability, 0, len(vulns))
+    for _, v := range vulns {
+        if severityRank[v.Severity] >= minRank {
+            filtered = append(filtered, v)
+        }
+    }
+    return filtered
+}
+
+// worstSeverityRank: bulunan en yuksek zafiyet seviyesi (0 = yok).
+func worstSeverityRank(vulns []scanner.Vulnerability) int {
+    worst := 0
+    for _, v := range vulns {
+        if r := severityRank[v.Severity]; r > worst {
+            worst = r
+        }
+    }
+    return worst
 }
 
 var scanCmd = &cobra.Command{
@@ -97,23 +147,30 @@ var scanCmd = &cobra.Command{
         vulns, err := sc.Scan()
         if err != nil {
             color.New(color.FgRed).Printf("Scanner error: %v\n", err)
-            return
+            os.Exit(1)
         }
+
+        vulns = filterBySeverity(vulns, severityFilter)
         reporter.PrintSummary(vulns)
 
         // Export report if format specified
-        if reportFormat == "json" {
+        switch reportFormat {
+        case "json":
             out := outputPath + ".json"
             _ = reporter.ExportJSON(out, vulns)
             color.New(color.FgCyan).Printf("[+] JSON report exported to: %s\n", out)
-        } else if reportFormat == "html" {
+        case "html":
             out := outputPath + ".html"
             _ = reporter.ExportHTML(out, vulns)
             color.New(color.FgCyan).Printf("[+] HTML report exported to: %s\n", out)
+        case "sarif":
+            out := outputPath + ".sarif"
+            _ = reporter.ExportSARIF(out, vulns)
+            color.New(color.FgCyan).Printf("[+] SARIF report exported to: %s (GitHub Code Scanning uyumlu)\n", out)
         }
 
         if len(vulns) == 0 {
-            return
+            os.Exit(0)
         }
 
         if autoFix && !patch.IsWorkTreeClean() {
@@ -178,21 +235,46 @@ var scanCmd = &cobra.Command{
 
         fmt.Println("\nScan completed.")
 
-        // CI entegrasyonu: zafiyet bulunduysa non-zero exit code dondur.
+        // CI entegrasyonu: --fail-on seviyesine ulasildiysa non-zero exit code dondur.
         // Auto-fix hepsini cozduyse 0 kalir.
-        if len(vulns) > 0 {
-            fixed := 0
-            if autoFix {
-                for r := range results {
-                    if r == nil {
-                        fixed++
-                    }
+        worst := worstSeverityRank(vulns)
+        fixed := 0
+        if autoFix {
+            for r := range results {
+                if r == nil {
+                    fixed++
                 }
             }
-            if fixed < len(vulns) {
-                color.New(color.FgRed).Printf("[!] %d vulnerability(ies) found - exit code 1 (CI will fail)\n", len(vulns)-fixed)
-                os.Exit(1)
+        }
+
+        remaining := len(vulns) - fixed
+        if remaining <= 0 {
+            os.Exit(0)
+        }
+
+        // fail-on esigi
+        failLevel := strings.ToUpper(strings.TrimSpace(failOn))
+        threshold := 1 // varsayilan: herhangi bir bulgu
+        if failLevel != "" {
+            switch failLevel {
+            case "NONE":
+                threshold = 99
+            case "LOW":
+                threshold = 1
+            case "MEDIUM":
+                threshold = 2
+            case "HIGH":
+                threshold = 3
+            case "CRITICAL":
+                threshold = 4
+            default:
+                threshold = 1
             }
+        }
+
+        if worst >= threshold {
+            color.New(color.FgRed).Printf("[!] %d vulnerability(ies) found - exit code 1 (CI will fail, fail-on=%s)\n", remaining, failLevel)
+            os.Exit(1)
         }
         os.Exit(0)
     },

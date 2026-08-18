@@ -2,4 +2,4 @@ package cmd
 
 // Version, ShieldGuard'in guncel surum numarasidir.
 // Yeni surum cikarken SADECE bu degeri guncelle.
-const Version = "1.0.2"
+const Version = "2.0.0"

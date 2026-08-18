@@ -17,6 +17,261 @@ type Vulnerability struct {
     Snippet  string
 }
 
+// Rule, satir bazinda calisan bir zafiyet tespit kuralidir.
+// Exts bos ise kural tum dillerde uygulanir.
+type Rule struct {
+    Type     string
+    Severity string
+    Score    float64
+    Exts     []string
+    Check    func(line string) bool
+}
+
+// supportedExts: taranabilir dosya uzantilari.
+var supportedExts = map[string]bool{
+    ".go": true, ".js": true, ".jsx": true, ".ts": true, ".tsx": true,
+    ".py": true, ".java": true, ".php": true, ".rb": true,
+    ".c": true, ".h": true, ".cpp": true, ".hpp": true, ".cc": true,
+}
+
+// rules: zafiyet kural katalogu (v2.0.0 - coklu dil).
+var rules = []Rule{
+    // ---- Tum diller ----
+    {
+        Type: "HardcodedSecret", Severity: "HIGH", Score: 0.95,
+        Check: func(l string) bool {
+            return hasSecretKeyword(l) && hasAssignment(l) && hasStringValue(l)
+        },
+    },
+    {
+        Type: "WeakCrypto", Severity: "MEDIUM", Score: 0.70,
+        Check: func(l string) bool {
+            lower := strings.ToLower(l)
+            return strings.Contains(lower, "md5") || strings.Contains(lower, "sha1")
+        },
+    },
+    {
+        Type: "InsecureRandom", Severity: "MEDIUM", Score: 0.65,
+        Check: func(l string) bool {
+            lower := strings.ToLower(l)
+            return strings.Contains(lower, "math/rand") ||
+                strings.Contains(lower, "random.random") ||
+                strings.Contains(lower, "random.randint") ||
+                strings.Contains(lower, "java.util.random") ||
+                strings.Contains(lower, "rand(") ||
+                strings.Contains(lower, "mt_rand")
+        },
+    },
+    // ---- Go ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".go"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "exec.Command") &&
+                (strings.Contains(l, "sh") || strings.Contains(l, "bash") || strings.Contains(l, "cmd"))
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".go"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "DB.Query") || strings.Contains(l, ".Query(") || strings.Contains(l, ".Exec(")) &&
+                (strings.Contains(l, "+") || strings.Contains(l, "fmt.Sprintf"))
+        },
+    },
+    {
+        Type: "PathTraversal", Severity: "HIGH", Score: 0.85, Exts: []string{".go"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "os.Open(") && strings.Contains(l, "r.URL.Query")
+        },
+    },
+    {
+        Type: "SSRF", Severity: "HIGH", Score: 0.88, Exts: []string{".go"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "http.Get") || strings.Contains(l, "http.Post") || strings.Contains(l, "http.NewRequest")) &&
+                (strings.Contains(l, "r.URL.Query") || strings.Contains(l, "r.FormValue") || strings.Contains(l, "r.Form["))
+        },
+    },
+    {
+        Type: "LDAPInjection", Severity: "HIGH", Score: 0.86, Exts: []string{".go"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "ldap.NewSearchRequest") &&
+                (strings.Contains(l, "+") || strings.Contains(l, "fmt.Sprintf"))
+        },
+    },
+    // ---- JavaScript / TypeScript ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".js", ".jsx", ".ts", ".tsx"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "child_process") ||
+                strings.Contains(l, "execSync") ||
+                strings.Contains(l, ".exec(") ||
+                strings.Contains(l, ".spawn(")
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".js", ".jsx", ".ts", ".tsx"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, ".query(") || strings.Contains(l, ".execute(") || strings.Contains(l, "sequelize.query")) &&
+                (strings.Contains(l, "`") || strings.Contains(l, "+") || strings.Contains(l, "template"))
+        },
+    },
+    {
+        Type: "XSS", Severity: "HIGH", Score: 0.85, Exts: []string{".js", ".jsx", ".ts", ".tsx"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "innerHTML") ||
+                strings.Contains(l, "document.write") ||
+                strings.Contains(l, "dangerouslySetInnerHTML")
+        },
+    },
+    {
+        Type: "SSRF", Severity: "HIGH", Score: 0.88, Exts: []string{".js", ".jsx", ".ts", ".tsx"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "fetch(") || strings.Contains(l, "axios.")) &&
+                (strings.Contains(l, "req.query") || strings.Contains(l, "req.params") || strings.Contains(l, "req.body"))
+        },
+    },
+    // ---- Python ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".py"},
+        Check: func(l string) bool {
+            // os.system/os.popen her zaman shell kullanir - tek basina da zafiyet
+            if strings.Contains(l, "os.system") || strings.Contains(l, "os.popen") {
+                return true
+            }
+            // subprocess icin shell=True veya string birlestirme gerekir
+            return strings.Contains(l, "subprocess.") &&
+                (strings.Contains(l, "shell=True") || strings.Contains(l, "+") || strings.Contains(l, "f\"") || strings.Contains(l, "f'"))
+        },
+    },
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".py"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "eval(") || strings.Contains(l, "exec(")
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".py"},
+        Check: func(l string) bool {
+            return strings.Contains(l, ".execute(") &&
+                (strings.Contains(l, "f\"") || strings.Contains(l, "f'") || strings.Contains(l, "format(") || strings.Contains(l, "%") || strings.Contains(l, "+"))
+        },
+    },
+    {
+        Type: "PathTraversal", Severity: "HIGH", Score: 0.85, Exts: []string{".py"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "open(") || strings.Contains(l, "send_file")) &&
+                (strings.Contains(l, "request.args") || strings.Contains(l, "request.form") || strings.Contains(l, "request.get_json"))
+        },
+    },
+    {
+        Type: "SSRF", Severity: "HIGH", Score: 0.88, Exts: []string{".py"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "requests.") &&
+                (strings.Contains(l, "request.args") || strings.Contains(l, "request.form") || strings.Contains(l, "input("))
+        },
+    },
+    {
+        Type: "UnsafeDeserialization", Severity: "CRITICAL", Score: 0.94, Exts: []string{".py"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "pickle.loads") || strings.Contains(l, "yaml.load(") || strings.Contains(l, "marshal.loads")
+        },
+    },
+    // ---- Java ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".java"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "Runtime.getRuntime().exec") || strings.Contains(l, "ProcessBuilder")
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".java"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "createStatement") || strings.Contains(l, ".executeQuery") || strings.Contains(l, ".execute(")) &&
+                (strings.Contains(l, "+") || strings.Contains(l, "String.format"))
+        },
+    },
+    {
+        Type: "UnsafeDeserialization", Severity: "CRITICAL", Score: 0.94, Exts: []string{".java"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "ObjectInputStream") && strings.Contains(l, "readObject")
+        },
+    },
+    {
+        Type: "SSRF", Severity: "HIGH", Score: 0.88, Exts: []string{".java"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "new URL(") || strings.Contains(l, "HttpURLConnection") || strings.Contains(l, "HttpClient")) &&
+                strings.Contains(l, "getParameter")
+        },
+    },
+    {
+        Type: "LDAPInjection", Severity: "HIGH", Score: 0.86, Exts: []string{".java"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "DirContext") && strings.Contains(l, "search") && strings.Contains(l, "+")
+        },
+    },
+    // ---- PHP ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".php"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "shell_exec") || strings.Contains(l, "system(") || strings.Contains(l, "exec(") || strings.Contains(l, "passthru")) &&
+                (strings.Contains(l, "$_GET") || strings.Contains(l, "$_POST") || strings.Contains(l, "$_REQUEST"))
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".php"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "mysqli_query") || strings.Contains(l, "mysql_query") || strings.Contains(l, "->query(")) &&
+                (strings.Contains(l, "$_GET") || strings.Contains(l, "$_POST") || strings.Contains(l, "$_REQUEST"))
+        },
+    },
+    {
+        Type: "XSS", Severity: "HIGH", Score: 0.85, Exts: []string{".php"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "echo") || strings.Contains(l, "print")) &&
+                (strings.Contains(l, "$_GET") || strings.Contains(l, "$_POST"))
+        },
+    },
+    {
+        Type: "UnsafeDeserialization", Severity: "CRITICAL", Score: 0.94, Exts: []string{".php"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "unserialize(")
+        },
+    },
+    // ---- Ruby ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".rb"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "system(") || strings.Contains(l, "exec(") || strings.Contains(l, "`")) &&
+                strings.Contains(l, "params")
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".rb"},
+        Check: func(l string) bool {
+            return strings.Contains(l, ".execute(") || (strings.Contains(l, "find_by_sql") && strings.Contains(l, "+"))
+        },
+    },
+    {
+        Type: "UnsafeDeserialization", Severity: "CRITICAL", Score: 0.94, Exts: []string{".rb"},
+        Check: func(l string) bool {
+            return strings.Contains(l, "Marshal.load")
+        },
+    },
+    // ---- C / C++ ----
+    {
+        Type: "CommandInjection", Severity: "CRITICAL", Score: 0.90, Exts: []string{".c", ".h", ".cpp", ".hpp", ".cc"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "system(") || strings.Contains(l, "popen(") || strings.Contains(l, "execl")) &&
+                strings.Contains(l, "argv")
+        },
+    },
+    {
+        Type: "SQLInjection", Severity: "CRITICAL", Score: 0.92, Exts: []string{".c", ".h", ".cpp", ".hpp", ".cc"},
+        Check: func(l string) bool {
+            return (strings.Contains(l, "mysql_query") || strings.Contains(l, "sqlite3_exec")) && strings.Contains(l, "+")
+        },
+    },
+}
+
 type Scanner struct {
     targetDir string
 }
@@ -33,14 +288,17 @@ func (s *Scanner) Scan() ([]Vulnerability, error) {
             return err
         }
 
-        if info.IsDir() && (info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules") {
+        if info.IsDir() && (info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "node_modules" || info.Name() == "__pycache__") {
             return filepath.SkipDir
         }
 
-        if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
-            fileVulns, err := scanFile(path)
-            if err == nil {
-                vulns = append(vulns, fileVulns...)
+        if !info.IsDir() {
+            ext := strings.ToLower(filepath.Ext(info.Name()))
+            if supportedExts[ext] {
+                fileVulns, scanErr := scanFile(path, ext)
+                if scanErr == nil {
+                    vulns = append(vulns, fileVulns...)
+                }
             }
         }
 
@@ -50,7 +308,7 @@ func (s *Scanner) Scan() ([]Vulnerability, error) {
     return vulns, err
 }
 
-func scanFile(filePath string) ([]Vulnerability, error) {
+func scanFile(filePath, ext string) ([]Vulnerability, error) {
     file, err := os.Open(filePath)
     if err != nil {
         return nil, err
@@ -66,56 +324,42 @@ func scanFile(filePath string) ([]Vulnerability, error) {
         line := scanner.Text()
 
         // Yorum satiri ise atla (false-positive azaltma)
-        if isCommentLine(line) {
+        if isCommentLine(line, ext) {
             continue
         }
 
-        if hasSecretKeyword(line) && hasAssignment(line) && hasStringValue(line) {
-            vulns = append(vulns, Vulnerability{
-                FilePath: filePath,
-                Line:     lineNum,
-                Type:     "HardcodedSecret",
-                Severity: "HIGH",
-                Score:    0.95,
-                Snippet:  strings.TrimSpace(line),
-            })
-        }
-
-        if strings.Contains(line, "exec.Command") && (strings.Contains(line, "sh") || strings.Contains(line, "bash") || strings.Contains(line, "cmd")) {
-            vulns = append(vulns, Vulnerability{
-                FilePath: filePath,
-                Line:     lineNum,
-                Type:     "CommandInjection",
-                Severity: "CRITICAL",
-                Score:    0.90,
-                Snippet:  strings.TrimSpace(line),
-            })
-        }
-
-        if strings.Contains(line, "DB.Query") || strings.Contains(line, "Exec(") && (strings.Contains(line, "+") || strings.Contains(line, "fmt.Sprintf")) {
-            vulns = append(vulns, Vulnerability{
-                FilePath: filePath,
-                Line:     lineNum,
-                Type:     "SQLInjection",
-                Severity: "CRITICAL",
-                Score:    0.92,
-                Snippet:  strings.TrimSpace(line),
-            })
-        }
-
-        if strings.Contains(line, "os.Open(") && strings.Contains(line, "r.URL.Query") {
-            vulns = append(vulns, Vulnerability{
-                FilePath: filePath,
-                Line:     lineNum,
-                Type:     "PathTraversal",
-                Severity: "HIGH",
-                Score:    0.85,
-                Snippet:  strings.TrimSpace(line),
-            })
+        for _, rule := range rules {
+            if !ruleApplies(rule, ext) {
+                continue
+            }
+            if rule.Check(line) {
+                vulns = append(vulns, Vulnerability{
+                    FilePath: filePath,
+                    Line:     lineNum,
+                    Type:     rule.Type,
+                    Severity: rule.Severity,
+                    Score:    rule.Score,
+                    Snippet:  strings.TrimSpace(line),
+                })
+            }
         }
     }
 
     return vulns, scanner.Err()
+}
+
+// ruleApplies: kural bu dosya uzantisi icin gecerli mi?
+// Kuralin Exts listesi bos ise tum dillerde uygulanir.
+func ruleApplies(rule Rule, ext string) bool {
+    if len(rule.Exts) == 0 {
+        return true
+    }
+    for _, e := range rule.Exts {
+        if e == ext {
+            return true
+        }
+    }
+    return false
 }
 
 func ExtractSnippetFromPos(filePath string, start, end token.Pos, fset *token.FileSet) string {
@@ -140,10 +384,17 @@ func ExtractSnippetSimple(filePath string, lineNo int) string {
     return ""
 }
 
-// isCommentLine: satirin yorum olup olmadigini kontrol eder (trim sonrasi // veya /*)
-func isCommentLine(line string) bool {
+// isCommentLine: satirin yorum olup olmadigini kontrol eder (dile gore).
+func isCommentLine(line, ext string) bool {
     t := strings.TrimSpace(line)
-    return strings.HasPrefix(t, "//") || strings.HasPrefix(t, "/*") || strings.HasPrefix(t, "*")
+    switch ext {
+    case ".py", ".rb":
+        return strings.HasPrefix(t, "#")
+    case ".php":
+        return strings.HasPrefix(t, "//") || strings.HasPrefix(t, "#") || strings.HasPrefix(t, "/*") || strings.HasPrefix(t, "*")
+    default:
+        return strings.HasPrefix(t, "//") || strings.HasPrefix(t, "/*") || strings.HasPrefix(t, "*")
+    }
 }
 
 // hasSecretKeyword: sifir/anahtar kelime iceren satir mi?

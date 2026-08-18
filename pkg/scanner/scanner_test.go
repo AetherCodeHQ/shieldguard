@@ -81,3 +81,111 @@ func TestExtractSnippetFromPos(t *testing.T) {
         t.Errorf("Snippet bos döndü, AST pozisyon extraction basarisiz")
     }
 }
+
+func TestScanner_MultiLanguage(t *testing.T) {
+    tempDir, err := os.MkdirTemp("", "shieldguard_ml_*")
+    if err != nil {
+        t.Fatalf("Gecici dizin olusturulamadi: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    files := map[string]string{
+        "app.py": `import os
+import subprocess
+
+def run(cmd):
+    os.system(cmd)
+    result = subprocess.run(cmd, shell=True)
+`,
+        "app.js": `function render(user) {
+    document.getElementById("out").innerHTML = user.name;
+    const resp = await fetch("https://api/" + req.query.url);
+}
+`,
+        "app.java": `class App {
+    void run(String cmd) {
+        Runtime.getRuntime().exec(cmd);
+    }
+}
+`,
+        "app.php": `<?php
+$x = unserialize($_POST["data"]);
+echo $_GET["q"];
+`,
+        "clean.go": `package main
+
+// password = "bu bir yorum - raporlanmamali"
+func main() {
+    _ = 1
+}
+`,
+    }
+
+    for name, content := range files {
+        if err := os.WriteFile(filepath.Join(tempDir, name), []byte(content), 0644); err != nil {
+            t.Fatalf("Test dosyasi yazilamadi %s: %v", name, err)
+        }
+    }
+
+    sc := NewScanner(tempDir)
+    vulns, err := sc.Scan()
+    if err != nil {
+        t.Fatalf("Scan sirasinda hata: %v", err)
+    }
+
+    got := map[string]bool{}
+    for _, v := range vulns {
+        got[v.Type] = true
+    }
+
+    checks := []struct {
+        typ      string
+        wantHit  bool
+    }{
+        {"CommandInjection", true},        // python
+        {"XSS", true},                     // js + php
+        {"SSRF", true},                    // js
+        {"UnsafeDeserialization", true},   // php
+        {"HardcodedSecret", false},        // sadece yorum satiri vardi
+    }
+
+    for _, c := range checks {
+        if got[c.typ] != c.wantHit {
+            t.Errorf("Tip %s: beklenen hit=%v, bulunan=%v (vulns: %+v)", c.typ, c.wantHit, got[c.typ], vulns)
+        }
+    }
+
+    // Java CommandInjection da bulunmali
+    if !got["CommandInjection"] {
+        t.Errorf("Java Runtime.exec tespit edilemedi")
+    }
+}
+
+func TestScanner_CommentSkipped(t *testing.T) {
+    tempDir, err := os.MkdirTemp("", "shieldguard_cm_*")
+    if err != nil {
+        t.Fatalf("Gecici dizin olusturulamadi: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+
+    mock := `package main
+
+// password = "sadece yorum"
+// api_key = "gizli" - go yorumu, raporlanmamali
+func main() {
+    _ = 1
+}
+`
+    if err := os.WriteFile(filepath.Join(tempDir, "yorum.go"), []byte(mock), 0644); err != nil {
+        t.Fatalf("Dosya yazilamadi: %v", err)
+    }
+
+    sc := NewScanner(tempDir)
+    vulns, err := sc.Scan()
+    if err != nil {
+        t.Fatalf("Scan hatasi: %v", err)
+    }
+    if len(vulns) != 0 {
+        t.Errorf("Yorum satirlari raporlanmamali, bulunan: %+v", vulns)
+    }
+}

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.0.0] - 2026-08-18
+### Added
+- **Multi-Language Support:** Scans Go, JavaScript/TypeScript, Python, Java, PHP, Ruby, and C/C++ (v1 only scanned Go).
+- **New Detection Rules:** SSRF, WeakCrypto (MD5/SHA1), InsecureRandom, LDAP Injection, XSS, Unsafe Deserialization, and Python eval/exec — 25 rules total across 7 languages.
+- **SARIF 2.1.0 Reporting:** New `--format sarif` output, compatible with GitHub Code Scanning.
+- **Severity Filtering:** New `--severity` flag to only report findings at or above a level (low/medium/high/critical).
+- **Configurable Fail Threshold:** New `--fail-on` flag to control the CI exit-code threshold (any/low/medium/high/critical/none).
+
+### Changed
+- Scanner refactored from hardcoded checks into a rule catalog (`pkg/scanner/rules`), making new rules easy to add.
+- HTML report now includes MEDIUM/LOW severity styling and HTML-escapes snippets.
+
 ## [v1.0.2] - 2026-08-18
 ### Added
 - **CI-Friendly Exit Codes:** `scan` now exits with code 1 when vulnerabilities are found and not auto-fixed, enabling reliable pipeline integration.
