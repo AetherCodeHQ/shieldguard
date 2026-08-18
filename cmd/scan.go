@@ -2,6 +2,7 @@ package cmd
 
 import (
     "context"
+    "os"
     "fmt"
     "path/filepath"
     "sync"
@@ -87,7 +88,7 @@ var scanCmd = &cobra.Command{
             color.New(color.FgCyan).Printf("Loaded configuration file: %s\n", viper.ConfigFileUsed())
         }
 
-        color.New(color.FgGreen).Printf("Starting scan v1.0.1: %s (model=%s, workers=%d, auto-fix=%v)\n", scanPath, modelName, concurrency, autoFix)
+        color.New(color.FgGreen).Printf("Starting scan v%s: %s (model=%s, workers=%d, auto-fix=%v)\n", Version, scanPath, modelName, concurrency, autoFix)
 
         absPath, _ := filepath.Abs(scanPath)
         reporter := report.NewReporter()
@@ -176,5 +177,23 @@ var scanCmd = &cobra.Command{
         close(results)
 
         fmt.Println("\nScan completed.")
+
+        // CI entegrasyonu: zafiyet bulunduysa non-zero exit code dondur.
+        // Auto-fix hepsini cozduyse 0 kalir.
+        if len(vulns) > 0 {
+            fixed := 0
+            if autoFix {
+                for r := range results {
+                    if r == nil {
+                        fixed++
+                    }
+                }
+            }
+            if fixed < len(vulns) {
+                color.New(color.FgRed).Printf("[!] %d vulnerability(ies) found - exit code 1 (CI will fail)\n", len(vulns)-fixed)
+                os.Exit(1)
+            }
+        }
+        os.Exit(0)
     },
 }

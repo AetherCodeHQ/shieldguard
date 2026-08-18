@@ -65,7 +65,12 @@ func scanFile(filePath string) ([]Vulnerability, error) {
         lineNum++
         line := scanner.Text()
 
-        if strings.Contains(line, "api_key") || strings.Contains(line, "password") || strings.Contains(line, "SECRET_") {
+        // Yorum satiri ise atla (false-positive azaltma)
+        if isCommentLine(line) {
+            continue
+        }
+
+        if hasSecretKeyword(line) && hasAssignment(line) && hasStringValue(line) {
             vulns = append(vulns, Vulnerability{
                 FilePath: filePath,
                 Line:     lineNum,
@@ -133,4 +138,32 @@ func ExtractSnippetSimple(filePath string, lineNo int) string {
         }
     }
     return ""
+}
+
+// isCommentLine: satirin yorum olup olmadigini kontrol eder (trim sonrasi // veya /*)
+func isCommentLine(line string) bool {
+    t := strings.TrimSpace(line)
+    return strings.HasPrefix(t, "//") || strings.HasPrefix(t, "/*") || strings.HasPrefix(t, "*")
+}
+
+// hasSecretKeyword: sifir/anahtar kelime iceren satir mi?
+func hasSecretKeyword(line string) bool {
+    lower := strings.ToLower(line)
+    return strings.Contains(lower, "api_key") ||
+        strings.Contains(lower, "apikey") ||
+        strings.Contains(lower, "password") ||
+        strings.Contains(lower, "passwd") ||
+        strings.Contains(lower, "secret") ||
+        strings.Contains(line, "SECRET_") ||
+        strings.Contains(lower, "token")
+}
+
+// hasAssignment: atama operatoru iceriyor mu? (degisken tanimi / kullanim degil)
+func hasAssignment(line string) bool {
+    return strings.Contains(line, "=") || strings.Contains(line, ":=")
+}
+
+// hasStringValue: satirda tirnakli bir string deger var mi?
+func hasStringValue(line string) bool {
+    return strings.Contains(line, "\"") || strings.Contains(line, "`")
 }

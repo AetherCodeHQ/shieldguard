@@ -12,7 +12,8 @@ var cfgFile string
 
 var rootCmd = &cobra.Command{
     Use:   "shieldguard",
-    Short: "ShieldGuard local-first SAST CLI tool",
+    Short:   "ShieldGuard local-first SAST CLI tool",
+    Version: Version,
 }
 
 func Execute() {

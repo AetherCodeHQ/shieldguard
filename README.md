@@ -1,6 +1,6 @@
 # 🛡️ ShieldGuard-CLI
 
-![Go Version](https://img.shields.io/badge/Go-1.20%2B-00ADD8?style=flat&logo=go)
+![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8?style=flat&logo=go)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama-black?style=flat&logo=ollama)
 
 [![ShieldGuard CI](https://github.com/Qyroxen/shieldguard/actions/workflows/ci.yml/badge.svg)](https://github.com/Qyroxen/shieldguard/actions/workflows/ci.yml)
@@ -33,7 +33,7 @@
 
 ### 1. Prerequisites
 
-- [Go 1.20+](https://go.dev/dl/) installed.
+- [Go 1.23+](https://go.dev/dl/) installed.
 - [Ollama](https://ollama.ai/) running locally with your model of choice:
   ```bash
   ollama pull llama3
