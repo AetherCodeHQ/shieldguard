@@ -1,22 +1,38 @@
 # Security Policy
 
-## Supported Versions
-
-| Version | Supported |
-| ------- | --------- |
-| 1.0.x   | ✅ Yes    |
-
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please report it responsibly:
 
-1. **Do NOT** open a public issue
-2. Email: security@example.com
-3. Include: Description, steps to reproduce, potential impact
-4. Expect: Response within 48 hours
+**Email:** aethercode.core@gmail.com
+
+**Please include:**
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+
+## Response Timeline
+
+- **Acknowledgment:** Within 48 hours
+- **Initial assessment:** Within 1 week
+- **Fix release:** Depends on severity
+
+## Security Measures
+
+This project implements:
+- ✅ CodeQL security analysis (weekly scans)
+- ✅ Dependabot for dependency updates
+- ✅ GolangCI-Lint for code quality
+- ✅ GitHub Actions CI/CD
+
+## Supported Versions
+
+| Version | Supported |
+|---------|-----------|
+| Latest  | ✅        |
+| < Latest | ❌       |
 
 ## Security Updates
 
-Security updates will be released as patch versions (e.g., 1.0.1).
-
-Thank you for helping keep this project secure!
+Security patches will be released as minor version updates.

@@ -1,94 +1,57 @@
-# Contributing
+# Contributing to Shieldguard
 
-Thank you for your interest in contributing! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing! 🎉
 
-## 🚀 Quick Start
+## How to Contribute
 
-1. **Fork** the repository
-2. **Clone** your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/ShieldGuard.git
-   cd ShieldGuard
-   ```
-3. **Create** a feature branch:
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-4. **Make** your changes
-5. **Commit** with conventional commits:
-   ```bash
-   git commit -m 'feat: add amazing feature'
-   ```
-6. **Push** to your fork:
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-7. **Open** a Pull Request
-
-## 📋 Development Setup
-
-### Prerequisites
-
-- Go 1.21 or higher
-- Git
-
-### Installation
-
+### 1. Fork the Repository
 ```bash
-# Clone the repo
-git clone https://github.com/Qyroxen/ShieldGuard.git
-cd ShieldGuard
+git clone https://github.com/Qyroxen/shieldguard.git
+cd shieldguard
+```
 
-# Install dependencies
-go mod download
+### 2. Create a Branch
+```bash
+git checkout -b feature/your-feature-name
+```
 
-# Build
-go build -o shieldguard .
+### 3. Make Your Changes
+- Write clean, documented code
+- Follow Go conventions (`gofmt`, `golint`)
+- Add tests for new functionality
 
-# Run tests
+### 4. Run Tests
+```bash
 go test ./...
-
-# Run linter
 golangci-lint run
 ```
 
-## 📝 Commit Convention
+### 5. Commit Your Changes
+```bash
+git commit -m "feat: add new feature description"
+```
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
+### 6. Push and Create PR
+```bash
+git push origin feature/your-feature-name
+```
 
-| Prefix | Description |
-|--------|-------------|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `docs:` | Documentation changes |
-| `style:` | Code style (formatting, etc.) |
-| `refactor:` | Code refactoring |
-| `test:` | Adding/updating tests |
-| `chore:` | Maintenance tasks |
-| `perf:` | Performance improvements |
-| `ci:` | CI/CD changes |
+## Commit Convention
 
-## 🔍 Code Review Process
+We use [Conventional Commits](https://www.conventionalcommits.org/):
 
-1. All PRs require at least one review
-2. CI must pass (tests, lint, build)
-3. No merge conflicts
-4. Follow existing code style
+- `feat:` — New feature
+- `fix:` — Bug fix
+- `docs:` — Documentation changes
+- `style:` — Code style changes (formatting, etc.)
+- `refactor:` — Code refactoring
+- `test:` — Adding tests
+- `chore:` — Maintenance tasks
 
-## 🏷️ Labels
+## Code of Conduct
 
-- `bug` - Something isn't working
-- `enhancement` - New feature or request
-- `documentation` - Improvements to docs
-- `good first issue` - Good for newcomers
-- `help wanted` - Extra attention needed
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
-## 📜 License
+## Questions?
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
-## 💬 Questions?
-
-Feel free to open an issue for questions or discussions!
-
-Thank you for contributing! 🎉
+Open an issue or start a discussion!

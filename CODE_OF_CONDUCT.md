@@ -2,24 +2,25 @@
 
 ## Our Pledge
 
-We pledge to make participation in our community a harassment-free experience for everyone.
+We as members, contributors, and leaders pledge to make participation in our
+community a harassment-free experience for everyone.
 
 ## Our Standards
 
-Positive behavior includes:
-- Using welcoming language
-- Being respectful of differing viewpoints
-- Gracefully accepting constructive criticism
+Examples of behavior that contributes to a positive environment:
 
-Unacceptable behavior includes:
-- Harassment of any kind
-- Sexualized language or imagery
-- Trolling or derogatory comments
+* Using welcoming and inclusive language
+* Being respectful of differing viewpoints and experiences
+* Gracefully accepting constructive criticism
+* Focusing on what is best for the community
 
 ## Enforcement
 
-Report unacceptable behavior to project maintainers.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the project maintainer at aethercode.core@gmail.com.
 
 ## Attribution
 
-Adapted from the Contributor Covenant, version 2.0.
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/),
+version 2.0, available at
+https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
