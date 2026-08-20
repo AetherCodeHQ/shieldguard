@@ -30,7 +30,7 @@
 
 ### Install from source
 ```bash
-git clone https://github.com/Qyroxen/shieldguard.git
+git clone https://github.com/AetherCodeHQ/shieldguard.git
 cd shieldguard
 go build -o shieldguard .
 ```
@@ -95,7 +95,7 @@ go build -o shieldguard .
 
 ```bash
 # Clone the repo
-git clone https://github.com/Qyroxen/shieldguard.git
+git clone https://github.com/AetherCodeHQ/shieldguard.git
 cd shieldguard
 
 # Build
@@ -123,5 +123,5 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ---
 
 <p align="center">
-  Built with ❤️ by <a href="https://github.com/Qyroxen">AetherCode</a> • <a href="https://github.com/AetherCode-Core">AetherCode-Core</a>
+  Built with ❤️ by <a href="https://github.com/AetherCodeHQ">AetherCode</a> • <a href="https://github.com/AetherCode-Core">AetherCode-Core</a>
 </p>

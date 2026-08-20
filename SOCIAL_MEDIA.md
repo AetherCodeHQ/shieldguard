@@ -24,7 +24,7 @@ Features:
 • Local LLM analysis
 • SARIF output for GitHub
 
-Try it: `go install github.com/Qyroxen/shieldguard@latest`
+Try it: `go install github.com/AetherCodeHQ/shieldguard@latest`
 
 ### Tweet 3 (Repo Security Score)
 📊 Repo Security Score
@@ -92,7 +92,7 @@ Protect your code and infrastructure.
 ✅ CI/CD enabled
 ✅ Ready to use
 
-GitHub: github.com/Qyroxen
+GitHub: github.com/AetherCodeHQ
 
 Star your favorites! ⭐
 
@@ -138,7 +138,7 @@ After months of development, I'm excited to share my complete toolkit for develo
 
 **Tech stack:** Go, Cobra, Ollama, Docker, Kubernetes
 
-Check it out: https://github.com/Qyroxen
+Check it out: https://github.com/AetherCodeHQ
 
 #OpenSource #GoLang #Security #DevOps #AI #Developer
 
@@ -169,7 +169,7 @@ I've been working on a collection of 100+ open-source tools, all written in Go. 
 
 All projects are MIT licensed and ready to use.
 
-GitHub: https://github.com/Qyroxen
+GitHub: https://github.com/AetherCodeHQ
 
 Would love your feedback!
 
@@ -195,7 +195,7 @@ Built a comprehensive security toolkit:
 - MIT licensed
 - Production-ready
 
-GitHub: https://github.com/Qyroxen
+GitHub: https://github.com/AetherCodeHQ
 
 ### r/DevOps
 **Title:** Open-source DevOps toolkit - 100+ tools in Go
@@ -220,4 +220,4 @@ Built a complete DevOps toolkit:
 
 All Go, all offline, all MIT.
 
-GitHub: https://github.com/Qyroxen
+GitHub: https://github.com/AetherCodeHQ
