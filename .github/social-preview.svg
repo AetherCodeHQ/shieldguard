@@ -1,0 +1,53 @@
+<svg width="1200" height="640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#161b22;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#58a6ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bc8cff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="640" fill="url(#grad)"/>
+  
+  <!-- Grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#21262d" stroke-width="0.5"/>
+  </pattern>
+  <rect width="1200" height="640" fill="url(#grid)"/>
+  
+  <!-- Accent line -->
+  <rect x="80" y="280" width="200" height="4" fill="url(#accent)" rx="2"/>
+  
+  <!-- Title -->
+  <text x="80" y="240" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" fill="#f0f6fc">
+    ShieldGuard
+  </text>
+  
+  <!-- Description -->
+  <text x="80" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#8b949e">
+    Open-source Go CLI tool
+  </text>
+  
+  <!-- Badges -->
+  <rect x="80" y="400" width="120" height="36" rx="18" fill="#238636"/>
+  <text x="140" y="424" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="white" text-anchor="middle">MIT License</text>
+  
+  <rect x="220" y="400" width="100" height="36" rx="18" fill="#1f6feb"/>
+  <text x="270" y="424" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="white" text-anchor="middle">Go 1.23+</text>
+  
+  <rect x="340" y="400" width="140" height="36" rx="18" fill="#8957e5"/>
+  <text x="410" y="424" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="white" text-anchor="middle">Open Source</text>
+  
+  <!-- GitHub logo -->
+  <text x="1100" y="100" font-family="system-ui, -apple-system, sans-serif" font-size="48" fill="#f0f6fc">⚙</text>
+  
+  <!-- Bottom accent -->
+  <rect x="0" y="620" width="1200" height="20" fill="url(#accent)"/>
+  
+  <!-- Author -->
+  <text x="1100" y="580" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#8b949e" text-anchor="end">github.com/Qyroxen</text>
+</svg>
